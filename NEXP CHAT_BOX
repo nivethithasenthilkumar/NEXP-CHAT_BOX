@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXP CHAT_BOX - Smart FAQ Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .chat-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .typing-indicator {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        
+        .chat-container {
+            background: linear-gradient(to bottom, #ece5dd, #d9fdd3);
+        }
+        
+        .bot-avatar {
+            background: linear-gradient(135deg, #25d366, #128c7e);
+        }
+        
+        .user-avatar {
+            background: linear-gradient(135deg, #f09433, #dc2743);
+        }
+        
+        .floating-chats {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        .floating-chat {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 8px 12px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.8);
+            animation: float 20s linear infinite;
+        }
+        
+        .floating-chat.instagram {
+            background: rgba(240, 148, 51, 0.15);
+            border-color: rgba(240, 148, 51, 0.3);
+        }
+        
+        .floating-chat.whatsapp {
+            background: rgba(37, 211, 102, 0.15);
+            border-color: rgba(37, 211, 102, 0.3);
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(50px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .main-content {
+            position: relative;
+            z-index: 10;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <!-- Floating Background Chats -->
+    <div class="floating-chats" id="floatingChats"></div>
+    
+    <!-- Navigation -->
+    <nav class="bg-white bg-opacity-10 backdrop-blur-lg border-b border-white border-opacity-20 main-content">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-white to-purple-100 rounded-xl flex items-center justify-center overflow-hidden">
+                        <img src="nk_logo.png" alt="NK Logo" class="w-8 h-8 object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-xl font-bold text-white">NEXP CHAT_BOX</h1>
+                </div>
+                
+                <div class="flex space-x-1">
+                    <button onclick="showPage('home')" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-all active">Home</button>
+                    <button onclick="showPage('help')" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-all">Help</button>
+                    <button onclick="showPage('settings')" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-all">Settings</button>
+                    <button onclick="showPage('login')" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-all">Login</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home" class="page active">
+        <!-- Header with Instructions -->
+        <div class="text-center py-8 px-4 main-content">
+            <div class="max-w-6xl mx-auto">
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-8 border border-white border-opacity-20 shadow-2xl mb-6">
+                    <h1 class="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-white to-purple-100 bg-clip-text text-transparent">Smart FAQ Assistant</h1>
+                    <p class="text-white text-opacity-90 text-lg mb-6">✨ Ask me anything about the topics below</p>
+                    
+                    <!-- What You Can Ask About -->
+                    <div class="bg-white bg-opacity-20 rounded-2xl p-6 mb-4">
+                        <h2 class="text-2xl font-bold text-white mb-4">🤔 What You Can Ask About:</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
+                                <h3 class="font-semibold text-white mb-2">🚚 Shipping & Delivery</h3>
+                                <ul class="text-white text-opacity-80 text-sm space-y-1">
+                                    <li>• Shipping options & costs</li>
+                                    <li>• Delivery timeframes</li>
+                                    <li>• International shipping</li>
+                                    <li>• Order tracking</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
+                                <h3 class="font-semibold text-white mb-2">↩️ Returns & Refunds</h3>
+                                <ul class="text-white text-opacity-80 text-sm space-y-1">
+                                    <li>• Return process</li>
+                                    <li>• Refund policies</li>
+                                    <li>• Exchange procedures</li>
+                                    <li>• Return timeframes</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
+                                <h3 class="font-semibold text-white mb-2">💳 Payments & Billing</h3>
+                                <ul class="text-white text-opacity-80 text-sm space-y-1">
+                                    <li>• Payment methods</li>
+                                    <li>• Billing issues</li>
+                                    <li>• Promo codes</li>
+                                    <li>• Price matching</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
+                                <h3 class="font-semibold text-white mb-2">👤 Account & Support</h3>
+                                <ul class="text-white text-opacity-80 text-sm space-y-1">
+                                    <li>• Account creation</li>
+                                    <li>• Order management</li>
+                                    <li>• Customer support</li>
+                                    <li>• Technical help</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-green-400 to-blue-500 rounded-2xl p-4">
+                        <p class="text-white font-medium">💡 Pro Tip: Ask questions naturally! I understand variations like "How do I return something?" or "What's your return policy?"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Container -->
+        <div class="max-w-4xl mx-auto p-4 main-content">
+            <div class="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden border border-white border-opacity-20">
+                <!-- Chat Messages Area -->
+                <div id="chatContainer" class="chat-container h-96 overflow-y-auto p-6 space-y-4">
+                    <!-- Welcome Message -->
+                    <div class="flex items-start space-x-3 chat-bubble">
+                        <div class="bot-avatar w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"></path>
+                            </svg>
+                        </div>
+                        <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border max-w-xs">
+                            <p class="text-gray-800 text-sm">👋 Hi! I'm your NEXP CHAT_BOX assistant. Ask me about shipping, returns, payments, accounts, or any other questions from the categories above!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="border-t bg-green-50 bg-opacity-50 p-4">
+                    <div class="flex space-x-3">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="Type your question here..." 
+                            class="flex-1 px-4 py-3 border border-green-200 rounded-full focus:outline-none focus:border-green-500 transition-colors bg-white focus:ring-2 focus:ring-green-200"
+                            onkeypress="handleKeyPress(event)"
+                        >
+                        <button 
+                            onclick="sendMessage()" 
+                            class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-full font-medium transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        >
+                            📤
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Questions -->
+                    <div class="mt-4">
+                        <p class="text-sm text-gray-600 mb-2">💡 Quick questions:</p>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="askQuickQuestion('What are your shipping options?')" class="px-3 py-1 bg-gradient-to-r from-green-100 to-green-200 text-green-700 rounded-full text-sm hover:from-green-200 hover:to-green-300 transition-all">🚚 Shipping</button>
+                            <button onclick="askQuickQuestion('How do I return an item?')" class="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 rounded-full text-sm hover:from-blue-200 hover:to-blue-300 transition-all">↩️ Returns</button>
+                            <button onclick="askQuickQuestion('What payment methods do you accept?')" class="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-200 text-purple-700 rounded-full text-sm hover:from-purple-200 hover:to-pink-300 transition-all">💳 Payment</button>
+                            <button onclick="askQuickQuestion('How can I track my order?')" class="px-3 py-1 bg-gradient-to-r from-orange-100 to-yellow-200 text-orange-700 rounded-full text-sm hover:from-orange-200 hover:to-yellow-300 transition-all">📦 Tracking</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Stats -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white bg-opacity-90 backdrop-blur-lg rounded-xl p-4 shadow-lg border border-white border-opacity-30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-lg">❓</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-gray-900" id="totalQuestions">25</p>
+                            <p class="text-sm text-gray-600">Total FAQs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white bg-opacity-90 backdrop-blur-lg rounded-xl p-4 shadow-lg border border-white border-opacity-30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-lg">✅</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-gray-900" id="questionsAnswered">0</p>
+                            <p class="text-sm text-gray-600">Questions Answered</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white bg-opacity-90 backdrop-blur-lg rounded-xl p-4 shadow-lg border border-white border-opacity-30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-pink-400 to-red-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-lg">🎯</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-gray-900" id="accuracy">95%</p>
+                            <p class="text-sm text-gray-600">Accuracy Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Page -->
+    <div id="help" class="page">
+        <div class="max-w-6xl mx-auto p-4 main-content">
+            <div class="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white border-opacity-20 mt-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">📚 Help & Documentation</h1>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-blue-900 mb-4">🚀 Getting Started</h2>
+                        <ul class="space-y-2 text-blue-800">
+                            <li>• Simply type your question in the chat box</li>
+                            <li>• Use natural language - no special commands needed</li>
+                            <li>• Click quick question buttons for common topics</li>
+                            <li>• Get instant answers 24/7</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-green-900 mb-4">💡 Tips for Better Results</h2>
+                        <ul class="space-y-2 text-green-800">
+                            <li>• Be specific about your question</li>
+                            <li>• Use keywords related to your topic</li>
+                            <li>• Try rephrasing if you don't get the right answer</li>
+                            <li>• Check the categories above for supported topics</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-purple-900 mb-4">🔧 Troubleshooting</h2>
+                        <ul class="space-y-2 text-purple-800">
+                            <li>• Refresh the page if chat stops responding</li>
+                            <li>• Clear your browser cache for better performance</li>
+                            <li>• Use Chrome or Firefox for best experience</li>
+                            <li>• Contact support if issues persist</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-orange-900 mb-4">📞 Contact Support</h2>
+                        <ul class="space-y-2 text-orange-800">
+                            <li>• Email: support@nexp-chatbox.com</li>
+                            <li>• Phone: 1-800-NEXP-HELP</li>
+                            <li>• Live Chat: Available 24/7</li>
+                            <li>• Response time: Under 2 hours</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+                    <h2 class="text-2xl font-bold mb-4">🎯 Supported Question Categories</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <h3 class="font-semibold mb-2">Shipping & Delivery</h3>
+                            <p class="text-sm opacity-90">Costs, timeframes, tracking, international shipping</p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">Returns & Exchanges</h3>
+                            <p class="text-sm opacity-90">Return process, refunds, exchange policies</p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">Payments & Billing</h3>
+                            <p class="text-sm opacity-90">Payment methods, billing issues, discounts</p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">Account & Technical</h3>
+                            <p class="text-sm opacity-90">Account management, technical support, app help</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div id="settings" class="page">
+        <div class="max-w-4xl mx-auto p-4 main-content">
+            <div class="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white border-opacity-20 mt-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">⚙️ Settings</h1>
+                
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">🎨 Appearance</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Theme</label>
+                                <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Default Gradient</option>
+                                    <option>Dark Mode</option>
+                                    <option>Light Mode</option>
+                                    <option>High Contrast</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Chat Bubble Style</label>
+                                <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Rounded (Default)</option>
+                                    <option>Square</option>
+                                    <option>Minimal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">🔔 Notifications</h2>
+                        <div class="space-y-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                <span class="ml-2 text-gray-700">Sound notifications</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                <span class="ml-2 text-gray-700">Typing indicators</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="ml-2 text-gray-700">Email notifications</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">🤖 Chat Behavior</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Response Speed</label>
+                                <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Instant</option>
+                                    <option>Normal (1-2 seconds)</option>
+                                    <option>Realistic (2-3 seconds)</option>
+                                </select>
+                            </div>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                <span class="ml-2 text-gray-700">Show confidence scores</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                <span class="ml-2 text-gray-700">Suggest related questions</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-4">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">Save Changes</button>
+                        <button class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors">Reset to Default</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="login" class="page">
+        <div class="max-w-md mx-auto p-4 main-content">
+            <div class="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white border-opacity-20 mt-16">
+                <div class="text-center mb-8">
+                    <img src="nk_logo.png" alt="NEXP CHAT_BOX Logo" class="w-16 h-16 rounded-2xl object-contain mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 p-2" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4" style="display: none;">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Welcome Back</h1>
+                    <p class="text-gray-600">Sign in to your NEXP CHAT_BOX account</p>
+                </div>
+                
+                <form class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <input type="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter your email">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter your password">
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">Remember me</span>
+                        </label>
+                        <a href="#" class="text-sm text-blue-600 hover:text-blue-500">Forgot password?</a>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Sign In
+                    </button>
+                </form>
+                
+                <div class="mt-6 text-center">
+                    <p class="text-gray-600">Don't have an account? <a href="#" class="text-blue-600 hover:text-blue-500 font-medium">Sign up</a></p>
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500 mb-4">Or continue with</p>
+                        <div class="flex space-x-3">
+                            <button class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors">Google</button>
+                            <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors">Facebook</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FAQ Database
+        const faqDatabase = [
+            {
+                question: "What are your shipping options?",
+                answer: "We offer several shipping options: Standard (5-7 business days, $5.99), Express (2-3 business days, $12.99), and Overnight ($24.99). Free standard shipping on orders over $50!",
+                keywords: ["shipping", "delivery", "ship", "send", "mail", "post"]
+            },
+            {
+                question: "How do I return an item?",
+                answer: "Returns are easy! You have 30 days from delivery to return items. Simply log into your account, select 'Return Items', print the prepaid label, and drop it off at any post office. Refunds are processed within 5-7 business days.",
+                keywords: ["return", "refund", "exchange", "send back", "money back"]
+            },
+            {
+                question: "What payment methods do you accept?",
+                answer: "We accept all major credit cards (Visa, MasterCard, American Express, Discover), PayPal, Apple Pay, Google Pay, and Shop Pay. All payments are processed securely with 256-bit SSL encryption.",
+                keywords: ["payment", "pay", "credit card", "paypal", "apple pay", "google pay", "billing"]
+            },
+            {
+                question: "How can I track my order?",
+                answer: "Once your order ships, you'll receive a tracking number via email. You can also track your order by logging into your account and visiting the 'Order History' section. Tracking updates every 24 hours.",
+                keywords: ["track", "tracking", "order status", "where is my order", "shipment"]
+            },
+            {
+                question: "Do you offer international shipping?",
+                answer: "Yes! We ship to over 50 countries worldwide. International shipping costs vary by destination and typically takes 7-14 business days. Customs fees may apply and are the customer's responsibility.",
+                keywords: ["international", "worldwide", "global", "overseas", "abroad", "country"]
+            },
+            {
+                question: "What is your warranty policy?",
+                answer: "All products come with a 1-year manufacturer warranty covering defects in materials and workmanship. Electronics have a 2-year warranty. Warranty claims can be filed through your account or by contacting support.",
+                keywords: ["warranty", "guarantee", "defect", "broken", "repair", "replacement"]
+            },
+            {
+                question: "How do I contact customer support?",
+                answer: "Our support team is here to help! Contact us via email at support@nexp-chatbox.com, phone at 1-800-NEXP-HELP (Mon-Fri 9AM-6PM EST), or live chat on our website. Average response time is under 2 hours.",
+                keywords: ["support", "help", "contact", "customer service", "phone", "email", "chat"]
+            },
+            {
+                question: "Can I change or cancel my order?",
+                answer: "You can modify or cancel orders within 1 hour of placing them. After that, orders enter our fulfillment process. Contact support immediately if you need to make changes - we'll do our best to help!",
+                keywords: ["cancel", "change", "modify", "edit", "update", "order"]
+            },
+            {
+                question: "Do you have a loyalty program?",
+                answer: "Yes! Join our VIP program for free and earn 1 point per dollar spent. Every 100 points = $5 reward. VIP members also get early access to sales, free shipping, and birthday discounts!",
+                keywords: ["loyalty", "rewards", "points", "vip", "member", "program", "benefits"]
+            },
+            {
+                question: "What sizes do you carry?",
+                answer: "We carry sizes XS through 3XL for most clothing items. Each product page includes a detailed size chart. If you're between sizes, we recommend sizing up. Free exchanges if the size doesn't fit perfectly!",
+                keywords: ["size", "sizing", "fit", "measurements", "chart", "xs", "xl", "large", "small"]
+            },
+            {
+                question: "Are your products eco-friendly?",
+                answer: "Sustainability is important to us! We use recycled packaging, partner with eco-conscious suppliers, and offer a carbon-neutral shipping option. Many products are made from sustainable materials - look for the green leaf icon!",
+                keywords: ["eco", "environment", "sustainable", "green", "recycled", "carbon", "eco-friendly"]
+            },
+            {
+                question: "Do you offer gift cards?",
+                answer: "Yes! Digital gift cards are available in amounts from $25 to $500. They're delivered instantly via email and never expire. Perfect for any occasion! Physical gift cards are also available for $2.99 shipping.",
+                keywords: ["gift card", "gift certificate", "present", "voucher", "credit"]
+            },
+            {
+                question: "What is your price matching policy?",
+                answer: "We'll match any competitor's lower price on identical items! Just contact us with the competitor's URL and we'll verify and adjust your price. Price matches are valid for 7 days after purchase.",
+                keywords: ["price match", "lower price", "competitor", "cheaper", "best price"]
+            },
+            {
+                question: "How do I create an account?",
+                answer: "Creating an account is quick and easy! Click 'Sign Up' in the top right corner, enter your email and create a password. You'll get faster checkout, order tracking, and exclusive member offers!",
+                keywords: ["account", "sign up", "register", "create", "profile", "login"]
+            },
+            {
+                question: "Do you offer bulk discounts?",
+                answer: "Yes! We offer volume discounts for orders of 10+ items. Discounts range from 10-25% depending on quantity. Contact our sales team at bulk@nexp-chatbox.com for a custom quote on large orders.",
+                keywords: ["bulk", "wholesale", "volume", "quantity", "discount", "large order"]
+            },
+            {
+                question: "What if an item is out of stock?",
+                answer: "If an item is temporarily out of stock, you can sign up for restock notifications. We'll email you as soon as it's available again! Most items are restocked within 2-3 weeks.",
+                keywords: ["out of stock", "unavailable", "restock", "back in stock", "sold out"]
+            },
+            {
+                question: "Do you have a mobile app?",
+                answer: "Yes! Download our free NEXP CHAT_BOX mobile app for iOS and Android. Get exclusive app-only deals, faster checkout, push notifications for sales, and easy order tracking. Search 'NEXP CHAT_BOX' in your app store!",
+                keywords: ["mobile app", "ios", "android", "phone", "download", "app store"]
+            },
+            {
+                question: "How secure is my personal information?",
+                answer: "Your privacy and security are our top priorities. We use industry-standard 256-bit SSL encryption, never store credit card details, and comply with all data protection regulations. Your information is never sold to third parties.",
+                keywords: ["security", "privacy", "safe", "secure", "data", "information", "protection"]
+            },
+            {
+                question: "Can I save items for later?",
+                answer: "Absolutely! Use our Wishlist feature to save items for later. You can also save items in your cart for up to 30 days. We'll even send you a reminder if prices drop on your saved items!",
+                keywords: ["wishlist", "save", "favorites", "later", "cart", "bookmark"]
+            },
+            {
+                question: "Do you offer installation services?",
+                answer: "Yes! We offer professional installation for furniture, electronics, and home improvement items. Installation fees vary by product and location. Schedule installation during checkout or contact support for details.",
+                keywords: ["installation", "setup", "assembly", "install", "professional", "service"]
+            },
+            {
+                question: "What are your store hours?",
+                answer: "Our online store is open 24/7! Our physical locations are open Monday-Saturday 10AM-9PM and Sunday 11AM-7PM. Holiday hours may vary - check our store locator for specific location hours.",
+                keywords: ["hours", "open", "closed", "time", "schedule", "store hours"]
+            },
+            {
+                question: "Do you offer student discounts?",
+                answer: "Yes! Students get 10% off with valid student ID verification through SheerID. The discount applies to most items and can be combined with sale prices. Verify your student status in your account settings.",
+                keywords: ["student", "discount", "education", "school", "college", "university"]
+            },
+            {
+                question: "How do I use a promo code?",
+                answer: "Enter your promo code at checkout in the 'Discount Code' field and click 'Apply'. The discount will be reflected in your order total. Promo codes cannot be combined unless specified and have expiration dates.",
+                keywords: ["promo code", "coupon", "discount code", "voucher", "promotion"]
+            },
+            {
+                question: "What is your privacy policy?",
+                answer: "We're committed to protecting your privacy. We collect only necessary information, use it to improve your experience, and never sell your data. Read our full privacy policy in the footer of our website for complete details.",
+                keywords: ["privacy policy", "data collection", "privacy", "information", "policy"]
+            },
+            {
+                question: "Do you offer live chat support?",
+                answer: "Yes! Live chat is available Monday-Friday 9AM-8PM EST and weekends 10AM-6PM EST. Look for the chat bubble in the bottom right corner of our website. Average wait time is less than 2 minutes!",
+                keywords: ["live chat", "chat support", "instant help", "chat", "online support"]
+            }
+        ];
+
+        let questionsAnswered = 0;
+
+        // Navigation
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Add active class to clicked nav link
+            event.target.classList.add('active');
+        }
+
+        // Simple text preprocessing function
+        function preprocessText(text) {
+            return text.toLowerCase()
+                      .replace(/[^\w\s]/g, ' ')
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                      .split(' ')
+                      .filter(word => word.length > 2);
+        }
+
+        // Calculate similarity between user question and FAQ
+        function calculateSimilarity(userWords, faqItem) {
+            const faqWords = preprocessText(faqItem.question);
+            const allKeywords = [...faqWords, ...faqItem.keywords];
+            
+            let matches = 0;
+            let totalWords = userWords.length;
+            
+            userWords.forEach(word => {
+                if (allKeywords.some(keyword => keyword.includes(word) || word.includes(keyword))) {
+                    matches++;
+                }
+            });
+            
+            return totalWords > 0 ? matches / totalWords : 0;
+        }
+
+        // Find best matching FAQ
+        function findBestMatch(userQuestion) {
+            const userWords = preprocessText(userQuestion);
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            faqDatabase.forEach(faq => {
+                const score = calculateSimilarity(userWords, faq);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = faq;
+                }
+            });
+            
+            return bestScore > 0.2 ? { faq: bestMatch, confidence: bestScore } : null;
+        }
+
+        // Add message to chat
+        function addMessage(message, isUser = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start space-x-3 chat-bubble ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
+            
+            const avatarClass = isUser ? 'user-avatar' : 'bot-avatar';
+            const bgClass = isUser ? 'bg-blue-600 text-white' : 'bg-white border';
+            const textClass = isUser ? 'text-white' : 'text-gray-800';
+            const roundedClass = isUser ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-tl-md';
+            
+            messageDiv.innerHTML = `
+                <div class="${avatarClass} w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        ${isUser ? 
+                            '<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>' :
+                            '<path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"></path>'
+                        }
+                    </svg>
+                </div>
+                <div class="${bgClass} ${roundedClass} px-4 py-3 shadow-sm max-w-xs">
+                    <p class="${textClass} text-sm">${message}</p>
+                </div>
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.className = 'flex items-start space-x-3';
+            typingDiv.innerHTML = `
+                <div class="bot-avatar w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"></path>
+                    </svg>
+                </div>
+                <div class="bg-white rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border max-w-xs">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style="animation-delay: 0.2s;"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style="animation-delay: 0.4s;"></div>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Process user message
+        function processMessage(userMessage) {
+            addMessage(userMessage, true);
+            
+            showTypingIndicator();
+            
+            setTimeout(() => {
+                removeTypingIndicator();
+                
+                const match = findBestMatch(userMessage);
+                
+                if (match) {
+                    const confidence = Math.round(match.confidence * 100);
+                    let response = match.faq.answer;
+                    
+                    if (confidence < 50) {
+                        response = `I think you're asking about: "${match.faq.question}"\n\n${response}\n\n💡 If this doesn't answer your question, try rephrasing it or contact our support team!`;
+                    }
+                    
+                    addMessage(response);
+                    questionsAnswered++;
+                    document.getElementById('questionsAnswered').textContent = questionsAnswered;
+                } else {
+                    const fallbackResponse = `I'm not sure about that specific question. Here are some things I can help you with:\n\n• Shipping and delivery options\n• Returns and refunds\n• Payment methods\n• Order tracking\n• Account management\n\nTry asking about one of these topics, or contact our support team at support@nexp-chatbox.com for personalized help! 😊`;
+                    addMessage(fallbackResponse);
+                }
+            }, 1500);
+        }
+
+        // Send message function
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                processMessage(message);
+                input.value = '';
+            }
+        }
+
+        // Handle enter key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Quick question function
+        function askQuickQuestion(question) {
+            document.getElementById('messageInput').value = question;
+            sendMessage();
+        }
+
+        // Update total questions count
+        document.getElementById('totalQuestions').textContent = faqDatabase.length;
+
+        // Floating chat messages
+        const floatingMessages = [
+            { text: "Hey! How's it going? 😊", type: "whatsapp" },
+            { text: "Just ordered something amazing! 🛍️", type: "instagram" },
+            { text: "Thanks for the quick delivery! 📦", type: "whatsapp" },
+            { text: "Love this product! ❤️", type: "instagram" },
+            { text: "Customer service is great! 👍", type: "whatsapp" },
+            { text: "When will my order arrive? 🤔", type: "instagram" },
+            { text: "Perfect quality! Highly recommend 🌟", type: "whatsapp" },
+            { text: "Easy return process! 🔄", type: "instagram" },
+            { text: "Fast shipping! Impressed 🚀", type: "whatsapp" },
+            { text: "Great prices! 💰", type: "instagram" },
+            { text: "Excellent support team! 💪", type: "whatsapp" },
+            { text: "Will definitely order again! 🔁", type: "instagram" },
+            { text: "Smooth checkout process! ✨", type: "whatsapp" },
+            { text: "Amazing deals today! 🎉", type: "instagram" },
+            { text: "Quick response time! ⚡", type: "whatsapp" }
+        ];
+
+        function createFloatingChat() {
+            const container = document.getElementById('floatingChats');
+            const message = floatingMessages[Math.floor(Math.random() * floatingMessages.length)];
+            
+            const chatElement = document.createElement('div');
+            chatElement.className = `floating-chat ${message.type}`;
+            chatElement.textContent = message.text;
+            
+            chatElement.style.left = Math.random() * 100 + '%';
+            chatElement.style.animationDelay = Math.random() * 2 + 's';
+            
+            container.appendChild(chatElement);
+            
+            setTimeout(() => {
+                if (chatElement.parentNode) {
+                    chatElement.parentNode.removeChild(chatElement);
+                }
+            }, 22000);
+        }
+
+        // Create floating chats at intervals
+        setInterval(createFloatingChat, 800);
+        
+        // Create initial batch
+        for (let i = 0; i < 5; i++) {
+            setTimeout(createFloatingChat, i * 200);
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97eff7bdb160b2ab',t:'MTc1Nzg1Mzc4My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
